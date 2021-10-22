@@ -1,75 +1,75 @@
+//How To Make a PWM DC Motor Speed Controller | RPM Counter using Arduino
 #include <LiquidCrystal.h>
 LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
 
-#define potentiometer  A0  //10k Variable Resistor
-#define bt_F A1 // Clockwise Button
-#define bt_S A2 // Stop Button
-#define bt_B A3 // Anticlockwise Button
+const int hallPin = 8;
+const unsigned long sampleTime = 1000;
+const int maxRPM = 10000;
 
-#define M1_Ena 11 // Enable1 L298 for PWM
-#define M1_in1 10 // In1  L298 for Clockwise
-#define M1_in2 9  // In2  L298 for Anticlockwise
+int volume_pin = A0;
+int read_ADC;
 
-int read_ADC =0;
+int pwm_pin = 11;
 int duty_cycle;
 int duty_cycle_lcd;
-int set = 0;
 
-void setup(){
-Serial.begin(9600);// initialize serial communication at 9600 bits per second:
+void setup() {
+  pinMode(hallPin, INPUT);
+  pinMode(volume_pin, INPUT);
+  pinMode(pwm_pin, OUTPUT);
 
-pinMode(potentiometer, INPUT);
-
-pinMode(bt_F, INPUT_PULLUP);
-pinMode(bt_S, INPUT_PULLUP);
-pinMode(bt_B, INPUT_PULLUP);
-
-pinMode(M1_Ena, OUTPUT);
-pinMode(M1_in1, OUTPUT);
-pinMode(M1_in2, OUTPUT);
-
-lcd.begin(16,2);  
-lcd.setCursor(0,0);
-lcd.print(" WELCOME To My");
-lcd.setCursor(0,1);
-lcd.print("Belief Group Project");
-delay(2000); // Waiting for a while
-lcd.clear();
+  lcd.begin(16, 2);
+  lcd.setCursor(0, 0);
+  lcd.print(" Welcome To ");
+  lcd.setCursor(0, 1);
+  lcd.print("Belief Group Project ");
+  delay(1000);
+  lcd.clear();
 }
 
-void loop(){ 
-read_ADC = analogRead(potentiometer);
-duty_cycle = map(read_ADC, 0, 1023, 0, 255);  
-duty_cycle_lcd = map(read_ADC, 0, 1023, 0, 100); 
+void loop() {
+  int rpm = getRPM();
 
-analogWrite(M1_Ena, duty_cycle);
+  read_ADC = analogRead(volume_pin);
+  duty_cycle = map(read_ADC, 0, 1023, 50, 255);
+  duty_cycle_lcd = map(read_ADC, 0, 1023, 0, 100);
 
-lcd.setCursor(0,0);
-lcd.print("Duty Cycle: ");
-lcd.print(duty_cycle_lcd); 
-lcd.print("%  ");
-
-if(digitalRead (bt_F) == 0){set = 1;}
-if(digitalRead (bt_S) == 0){set = 0;}
-if(digitalRead (bt_B) == 0){set = 2;}
+  if (duty_cycle_lcd > 0) {
+    analogWrite(pwm_pin, duty_cycle);
+  } else {
+    digitalWrite(pwm_pin, LOW);
+  }
 
 
-lcd.setCursor(0,1);
+  lcd.setCursor(0, 0);
+  lcd.print("Duty Cycle: ");
+  lcd.print(duty_cycle_lcd);
+  lcd.print("%  ");
 
-if(set==0){ lcd.print("      Stop      ");
-digitalWrite(M1_in1, LOW);  
-digitalWrite(M1_in2, LOW);
+  lcd.setCursor(0, 1);
+  lcd.print("   RPM: ");
+  lcd.print(rpm);
+  lcd.print("   ");
+
+  delay(10);
 }
 
-if(set==1){ lcd.print("    Clockwise   ");
-digitalWrite(M1_in1, HIGH);  
-digitalWrite(M1_in2, LOW);
-}
-
-if(set==2){ lcd.print(" Anticlockwise  ");
-digitalWrite(M1_in1, LOW);  
-digitalWrite(M1_in2, HIGH);
-}
-
-delay(40); 
+int getRPM() {
+  // sample for sampleTime in millisecs
+  int kount = 0;
+  boolean kflag = LOW;
+  unsigned long currentTime = 0;
+  unsigned long startTime = millis();
+  while (currentTime <= sampleTime) {
+    if (digitalRead(hallPin) == HIGH) {
+      kflag = HIGH;
+    }
+    if (digitalRead(hallPin) == LOW && kflag == HIGH) {
+      kount++;
+      kflag = LOW;
+    }
+    currentTime = millis() - startTime;
+  }
+  int kount2rpm = int(30000. / float(sampleTime)) * kount;
+  return kount2rpm;
 }
